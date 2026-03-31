@@ -1,30 +1,88 @@
 <script>
 let selectedAmount = 40;
+let isProcessing = false;
+
+const API_URL = "http://localhost:3000/api/create-payment"; // cambia en producción
 
 async function processDonation() {
+  // 🔒 Evitar doble click / spam
+  if (isProcessing) return;
+  isProcessing = true;
+
+  const btn = document.querySelector(".submit-btn");
+  const originalText = btn.innerHTML;
+
   try {
-    if (!selectedAmount || selectedAmount <= 0) {
-      alert("Selecciona un monto válido");
+    // 🎯 Validación sólida
+    const amount = Number(selectedAmount);
+
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      showError("Selecciona un monto válido");
       return;
     }
 
-    const res = await fetch("http://localhost:3000/api/create-payment", {
+    if (amount > 10000000) {
+      showError("El monto es demasiado alto");
+      return;
+    }
+
+    // 💡 Estado loading UX
+    btn.innerHTML = "Procesando...";
+    btn.disabled = true;
+    btn.style.opacity = "0.7";
+
+    // 🌐 Request al backend
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ amount: selectedAmount })
+      body: JSON.stringify({ amount }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeout);
+
+    // ❌ Manejo de errores HTTP
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || "Error del servidor");
+    }
 
     const data = await res.json();
 
-    if (!data.url) throw new Error();
+    // 🔗 Validación respuesta
+    if (!data.url || typeof data.url !== "string") {
+      throw new Error("Respuesta inválida del servidor");
+    }
 
+    // 🚀 Redirección segura
     window.location.href = data.url;
 
   } catch (err) {
-    alert("Error en el pago");
-    console.error(err);
+    console.error("PAYMENT ERROR:", err);
+
+    if (err.name === "AbortError") {
+      showError("El servidor tardó demasiado. Intenta nuevamente.");
+    } else {
+      showError("No se pudo procesar el pago");
+    }
+
+  } finally {
+    // 🔄 Restaurar estado botón
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    isProcessing = false;
   }
 }
+
+// 🎨 UI helpers (PRO)
+function showError(message) {
+  alert(message); // puedes reemplazar por toast elegante
+}
+
 </script>
