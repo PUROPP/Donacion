@@ -1,0 +1,30 @@
+<script>
+let selectedAmount = 40;
+
+async function processDonation() {
+  try {
+    if (!selectedAmount || selectedAmount <= 0) {
+      alert("Selecciona un monto válido");
+      return;
+    }
+
+    const res = await fetch("http://localhost:3000/api/create-payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ amount: selectedAmount })
+    });
+
+    const data = await res.json();
+
+    if (!data.url) throw new Error();
+
+    window.location.href = data.url;
+
+  } catch (err) {
+    alert("Error en el pago");
+    console.error(err);
+  }
+}
+</script>
