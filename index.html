@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lumina Donaciones</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lumina — Donaciones</title>
 
   <style>
     :root {
@@ -11,11 +11,17 @@
       --card: #1a1a1a;
       --gold: #c9a84c;
       --text: #ffffff;
+      --muted: #888;
+      --error: #ff4d4f;
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       display: flex;
@@ -27,127 +33,228 @@
     .container {
       background: var(--card);
       padding: 40px;
-      border-radius: 12px;
-      text-align: center;
-      width: 320px;
+      border-radius: 16px;
+      width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     }
 
     h1 {
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+
+    .amount-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
     }
 
     .amount-btn {
-      margin: 5px;
-      padding: 10px 15px;
+      padding: 12px;
       border: 1px solid #333;
-      background: none;
+      background: transparent;
       color: white;
       cursor: pointer;
+      border-radius: 8px;
+      transition: 0.2s;
+    }
+
+    .amount-btn:hover {
+      border-color: var(--gold);
     }
 
     .amount-btn.active {
       background: var(--gold);
       color: black;
+      border-color: var(--gold);
+      font-weight: bold;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .input-group span {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gold);
     }
 
     input {
-      margin-top: 10px;
-      padding: 10px;
       width: 100%;
-      background: #111;
+      padding: 12px 12px 12px 28px;
+      border-radius: 8px;
       border: 1px solid #333;
+      background: #111;
       color: white;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--gold);
     }
 
     .submit-btn {
-      margin-top: 20px;
-      padding: 15px;
       width: 100%;
+      padding: 16px;
       background: var(--gold);
       border: none;
+      border-radius: 10px;
       font-weight: bold;
       cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 15px;
+      font-size: 13px;
+      text-align: center;
+      color: var(--muted);
+      min-height: 18px;
+    }
+
+    .error {
+      color: var(--error);
+    }
+
+    .success {
+      color: #4caf50;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="container">
-    <h1>Donar</h1>
+<div class="container">
+  <h1>Donar</h1>
+  <p>Tu aporte cambia vidas</p>
 
-    <div>
-      <button class="amount-btn" onclick="selectAmount(this, 15)">$15</button>
-      <button class="amount-btn active" onclick="selectAmount(this, 40)">$40</button>
-      <button class="amount-btn" onclick="selectAmount(this, 100)">$100</button>
-    </div>
-
-    <input type="number" id="customAmount" placeholder="Otro monto" oninput="customInput()">
-
-    <button class="submit-btn" onclick="processDonation()">Donar ahora</button>
+  <div class="amount-grid">
+    <button class="amount-btn" onclick="selectAmount(this,15)">$15</button>
+    <button class="amount-btn active" onclick="selectAmount(this,40)">$40</button>
+    <button class="amount-btn" onclick="selectAmount(this,100)">$100</button>
   </div>
 
-  <script>
-    let selectedAmount = 40;
-    let isProcessing = false;
+  <div class="input-group">
+    <span>$</span>
+    <input type="number" id="customAmount" placeholder="Otro monto" oninput="customInput()">
+  </div>
 
-    // ⚠️ CAMBIA ESTO CUANDO SUBAS BACKEND
-    const API_URL = "http://localhost:3000/api/create-payment";
+  <button class="submit-btn" id="payBtn" onclick="processDonation()">
+    Donar ahora
+  </button>
 
-    function selectAmount(btn, amount) {
-      document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedAmount = amount;
-      document.getElementById('customAmount').value = "";
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+let selectedAmount = 40;
+let isProcessing = false;
+
+// 🔥 BACKEND REAL
+const API_URL = "https://donacion-5iod.onrender.com/api/create-payment";
+
+function setStatus(msg, type = "") {
+  const el = document.getElementById("status");
+  el.innerText = msg;
+  el.className = "status " + type;
+}
+
+function selectAmount(btn, amount) {
+  document.querySelectorAll(".amount-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  selectedAmount = amount;
+  document.getElementById("customAmount").value = "";
+  setStatus("");
+}
+
+function customInput() {
+  document.querySelectorAll(".amount-btn").forEach(b => b.classList.remove("active"));
+  selectedAmount = parseFloat(document.getElementById("customAmount").value) || 0;
+}
+
+async function processDonation() {
+  if (isProcessing) return;
+  isProcessing = true;
+
+  const btn = document.getElementById("payBtn");
+
+  try {
+    const amount = Number(selectedAmount);
+
+    if (!amount || amount <= 0) {
+      setStatus("Ingresa un monto válido", "error");
+      return;
     }
 
-    function customInput() {
-      document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
-      selectedAmount = parseFloat(document.getElementById('customAmount').value) || 0;
+    if (amount > 10000000) {
+      setStatus("Monto demasiado alto", "error");
+      return;
     }
 
-    async function processDonation() {
-      if (isProcessing) return;
-      isProcessing = true;
+    btn.innerText = "Procesando...";
+    btn.disabled = true;
+    setStatus("Conectando con servidor...");
 
-      const btn = document.querySelector(".submit-btn");
-      const originalText = btn.innerText;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
-      try {
-        const amount = Number(selectedAmount);
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ amount }),
+      signal: controller.signal
+    });
 
-        if (!amount || amount <= 0) {
-          alert("Monto inválido");
-          return;
-        }
+    clearTimeout(timeout);
 
-        btn.innerText = "Procesando...";
-        btn.disabled = true;
-
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ amount })
-        });
-
-        const data = await res.json();
-
-        if (!data.url) throw new Error();
-
-        window.location.href = data.url;
-
-      } catch (err) {
-        console.error(err);
-        alert("Error en el pago");
-      } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-        isProcessing = false;
-      }
+    if (!res.ok) {
+      throw new Error("Error servidor");
     }
-  </script>
+
+    const data = await res.json();
+
+    if (!data.url) {
+      throw new Error("Respuesta inválida");
+    }
+
+    setStatus("Redirigiendo a pago...", "success");
+
+    window.location.href = data.url;
+
+  } catch (err) {
+    console.error(err);
+
+    if (err.name === "AbortError") {
+      setStatus("El servidor tardó demasiado", "error");
+    } else {
+      setStatus("Error al procesar el pago", "error");
+    }
+
+  } finally {
+    btn.innerText = "Donar ahora";
+    btn.disabled = false;
+    isProcessing = false;
+  }
+}
+</script>
 
 </body>
 </html>
