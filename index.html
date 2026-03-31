@@ -1,88 +1,153 @@
-<script>
-let selectedAmount = 40;
-let isProcessing = false;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumina Donaciones</title>
 
-const API_URL = "http://localhost:3000/api/create-payment"; // cambia en producción
-
-async function processDonation() {
-  // 🔒 Evitar doble click / spam
-  if (isProcessing) return;
-  isProcessing = true;
-
-  const btn = document.querySelector(".submit-btn");
-  const originalText = btn.innerHTML;
-
-  try {
-    // 🎯 Validación sólida
-    const amount = Number(selectedAmount);
-
-    if (!amount || amount <= 0 || isNaN(amount)) {
-      showError("Selecciona un monto válido");
-      return;
+  <style>
+    :root {
+      --bg: #0e0e0e;
+      --card: #1a1a1a;
+      --gold: #c9a84c;
+      --text: #ffffff;
     }
 
-    if (amount > 10000000) {
-      showError("El monto es demasiado alto");
-      return;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
 
-    // 💡 Estado loading UX
-    btn.innerHTML = "Procesando...";
-    btn.disabled = true;
-    btn.style.opacity = "0.7";
-
-    // 🌐 Request al backend
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ amount }),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeout);
-
-    // ❌ Manejo de errores HTTP
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || "Error del servidor");
+    .container {
+      background: var(--card);
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      width: 320px;
     }
 
-    const data = await res.json();
-
-    // 🔗 Validación respuesta
-    if (!data.url || typeof data.url !== "string") {
-      throw new Error("Respuesta inválida del servidor");
+    h1 {
+      margin-bottom: 20px;
     }
 
-    // 🚀 Redirección segura
-    window.location.href = data.url;
-
-  } catch (err) {
-    console.error("PAYMENT ERROR:", err);
-
-    if (err.name === "AbortError") {
-      showError("El servidor tardó demasiado. Intenta nuevamente.");
-    } else {
-      showError("No se pudo procesar el pago");
+    .amount-btn {
+      margin: 5px;
+      padding: 10px 15px;
+      border: 1px solid #333;
+      background: none;
+      color: white;
+      cursor: pointer;
     }
 
-  } finally {
-    // 🔄 Restaurar estado botón
-    btn.innerHTML = originalText;
-    btn.disabled = false;
-    btn.style.opacity = "1";
-    isProcessing = false;
-  }
-}
+    .amount-btn.active {
+      background: var(--gold);
+      color: black;
+    }
 
-// 🎨 UI helpers (PRO)
-function showError(message) {
-  alert(message); // puedes reemplazar por toast elegante
-}
+    input {
+      margin-top: 10px;
+      padding: 10px;
+      width: 100%;
+      background: #111;
+      border: 1px solid #333;
+      color: white;
+    }
 
-</script>
+    .submit-btn {
+      margin-top: 20px;
+      padding: 15px;
+      width: 100%;
+      background: var(--gold);
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>Donar</h1>
+
+    <div>
+      <button class="amount-btn" onclick="selectAmount(this, 15)">$15</button>
+      <button class="amount-btn active" onclick="selectAmount(this, 40)">$40</button>
+      <button class="amount-btn" onclick="selectAmount(this, 100)">$100</button>
+    </div>
+
+    <input type="number" id="customAmount" placeholder="Otro monto" oninput="customInput()">
+
+    <button class="submit-btn" onclick="processDonation()">Donar ahora</button>
+  </div>
+
+  <script>
+    let selectedAmount = 40;
+    let isProcessing = false;
+
+    // ⚠️ CAMBIA ESTO CUANDO SUBAS BACKEND
+    const API_URL = "http://localhost:3000/api/create-payment";
+
+    function selectAmount(btn, amount) {
+      document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedAmount = amount;
+      document.getElementById('customAmount').value = "";
+    }
+
+    function customInput() {
+      document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+      selectedAmount = parseFloat(document.getElementById('customAmount').value) || 0;
+    }
+
+    async function processDonation() {
+      if (isProcessing) return;
+      isProcessing = true;
+
+      const btn = document.querySelector(".submit-btn");
+      const originalText = btn.innerText;
+
+      try {
+        const amount = Number(selectedAmount);
+
+        if (!amount || amount <= 0) {
+          alert("Monto inválido");
+          return;
+        }
+
+        btn.innerText = "Procesando...";
+        btn.disabled = true;
+
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ amount })
+        });
+
+        const data = await res.json();
+
+        if (!data.url) throw new Error();
+
+        window.location.href = data.url;
+
+      } catch (err) {
+        console.error(err);
+        alert("Error en el pago");
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        isProcessing = false;
+      }
+    }
+  </script>
+
+</body>
+</html>
